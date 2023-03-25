@@ -30,7 +30,7 @@ export class CoordinatorSearchUseCase {
           }
         ]
       }
-    })
+    }, 1000)
     .then(it => it.hits.hits.map(it => it._source))
     .then(it => it.map(c => new Coordinator(new Name(c.name), new LatLng(new Degree(c.lat), new Degree(c.lng)))))
     .then(it => new Coordinators(it));

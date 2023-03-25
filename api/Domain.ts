@@ -7,8 +7,11 @@ export class Coordinator {
 }
 export class Coordinators {
   constructor(readonly values: Coordinator[]) {}
-  excludeOutOfArea(area: Area) {
-    this.values.filter(it => area.isIn(it.center));
+  excludeOutOfArea(area: Area): Coordinators {
+    return new Coordinators(this.values.filter(it => area.isIn(it.center)))
+  }
+  map<U>(callbackfn: (value: Coordinator, index: number, array: Coordinator[]) => U, thisArg?: any): U[] {
+    return this.values.map(callbackfn, thisArg);
   }
 }
 
@@ -28,26 +31,9 @@ export class Area {
     return this.radius.toLongitudeDegree(this.center.lat);
   }
   isIn(pos: LatLng) {
-    /*
-    lat1_rad, lon1_rad = lat1 * DEG_TO_RAD, lon1 * DEG_TO_RAD
-    lat2_rad, lon2_rad = lat2 * DEG_TO_RAD, lon2 * DEG_TO_RAD
-    dlat = lat2_rad - lat1_rad
-    dlon = lon2_rad - lon1_rad
-    a = math.sin(dlat/2)**2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(dlon/2)**2
-    c = 2 * math.asin(math.sqrt(a))
-    return EARTH_RADIUS * c
-    */
-    const [lat1_rad, lng1_rad] = [this.center.lat.value * Area.DEG_TO_RAD, this.center.lng.value * Area.DEG_TO_RAD];
-    const [lat2_rad, lng2_rad] = [pos.lat.value * Area.DEG_TO_RAD, pos.lng.value * Area.DEG_TO_RAD];
-    const [dlat, dlng] = [lat2_rad - lat1_rad, lng2_rad, lng1_rad];
-    const x = Math.pow(Math.sin(dlat / 2), 2) + Math.cos(lat1_rad) * Math.cos(lat2_rad) * Math.pow(Math.sin(dlng / 2), 2);
-    const distance = 2 * Math.asin(Math.sqrt(x)) * Meter.RadiusOfEarth;
-    return this.radius.value > distance;
+    const distanceOfOtherPointFromCenter = this.center.distanceTo(pos);
+    return distanceOfOtherPointFromCenter.isLessThan(this.radius);
   }
-}
-
-export class Distance {
-  constructor(readonly value: number) {}
 }
 
 export class Degree {
@@ -83,6 +69,9 @@ export class Meter {
     // lon_diff = (d / R) * (180 / math.pi) / math.cos(lat_center * math.pi / 180)
     return new Degree((this.value / Meter.RadiusOfEarth) * (180 / Math.PI) / Math.cos(latitude.value * Math.PI / 180));
   }
+  isLessThan(other: Meter) {
+    return this.value < other.value;
+  }
 }
 
 export class LatLng {
@@ -91,7 +80,20 @@ export class LatLng {
     return new LatLng(this.lat.add(lat), this.lng.add(lng));
   }
 
-  distanceTo(other: LatLng): Distance {
-    throw Error("unimplemented")
+  distanceTo(other: LatLng): Meter {
+    /*
+    lat1_rad, lon1_rad = lat1 * DEG_TO_RAD, lon1 * DEG_TO_RAD
+    lat2_rad, lon2_rad = lat2 * DEG_TO_RAD, lon2 * DEG_TO_RAD
+    dlat = lat2_rad - lat1_rad
+    dlon = lon2_rad - lon1_rad
+    a = math.sin(dlat/2)**2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(dlon/2)**2
+    c = 2 * math.asin(math.sqrt(a))
+    return EARTH_RADIUS * c
+    */
+    const [lat1_rad, lng1_rad] = [this.lat.value * Area.DEG_TO_RAD, this.lng.value * Area.DEG_TO_RAD];
+    const [lat2_rad, lng2_rad] = [other.lat.value * Area.DEG_TO_RAD, other.lng.value * Area.DEG_TO_RAD];
+    const [dlat, dlng] = [lat2_rad - lat1_rad, lng2_rad - lng1_rad];
+    const x = Math.pow(Math.sin(dlat / 2), 2) + Math.cos(lat1_rad) * Math.cos(lat2_rad) * Math.pow(Math.sin(dlng / 2), 2);
+    return new Meter(2 * Math.asin(Math.sqrt(x)) * Meter.RadiusOfEarth);
   }
 }

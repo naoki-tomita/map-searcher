@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { GoogleMap, LoadScript, Marker, Polygon } from "@react-google-maps/api";
+import { GoogleMap, LoadScript, Marker, Circle } from "@react-google-maps/api";
 import debounce from "debounce";
 
 function queryString(object: object) {
@@ -13,54 +13,44 @@ function search(lat: number, lng: number, radius: number) {
 
 type Location = { name: string, lat: number, lng: number };
 
-function useLocations({ lat, lng }: { lat: number, lng: number }) {
+function useLocations({ lat, lng, radius: defaultRadius }: { lat: number, lng: number, radius: number }) {
   const [center, setCenter] = useState({ lat, lng });
+  const [radius, setRadius] = useState(defaultRadius);
   const [locations, setLocations] = useState<Location[]>([]);
-  const [range, setRange] = useState<{ [key: string]: { from: number; to: number; } }>();
   useEffect(() => {
-    search(center.lat, center.lng, 5000)
-    .then<{
-      area: {
-        lat: {
-          from: number;
-          to: number;
-        };
-        lng: {
-          from: number;
-          to: number;
-        };
-      };
-      addresses: Location[];
-    }>(it => it.json())
+    search(center.lat, center.lng, radius)
+    .then<{ addresses: Location[]; }>(it => it.json())
     .then(it => {
-      setRange(it.area);
       setLocations(it.addresses);
     });
-  }, [center.lat, center.lng]);
+  }, [center.lat, center.lng, radius]);
   return {
-    range,
     center,
     locations,
-    setCenter(lat: number, lng: number) {
-      setCenter({ lat, lng })
-    }
+    radius,
+    setRadius,
+    setCenter,
   }
 }
 
 
 const App = () => {
   const [map, setMap] = useState<google.maps.Map>()
-  const { setCenter, center, locations, range } = useLocations({ lat: 35.69575, lng: 139.77521 })
+  const { setCenter, center, locations, radius, setRadius } = useLocations({ lat: 35.69575, lng: 139.77521, radius: 1000 })
   const onChange = debounce(() => {
     const coor = map?.getCenter()?.toJSON();
-    coor && setCenter(coor.lat, coor.lng);
-  }, 300);
+    coor && setCenter(coor);
+  });
+  const onRadiusChange = debounce(e => setRadius(parseInt(e.target.value, 10)));
 
   return (
     <div>
-      <ul style={{ position: "fixed", fontSize: 10, left: 20, top: 20, width: 240, height: 320, overflow: "auto", zIndex: 1, background: "#fff" }}>
-        {locations.map(it => <li key={it.name}>{it.name}</li>)}
-      </ul>
+      <div>
+        <input type="range" min="1" max="10000" defaultValue="1000" onChange={onRadiusChange} />半径: <input value={radius} onChange={e => setRadius(parseInt(e.target.value || "0" , 10))}/>m
+        <ul style={{ position: "fixed", fontSize: 10, left: 20, top: 20, width: 240, height: 320, overflow: "auto", zIndex: 1, background: "#fff" }}>
+          {locations.map(it => <li key={it.name}>{it.name}</li>)}
+        </ul>
+      </div>
       <LoadScript googleMapsApiKey="AIzaSyDtoF5sQx1NimzgaaAWCsoN5L1icxY2iM0">
         <GoogleMap
           onLoad={it => setMap(it)}
@@ -69,13 +59,8 @@ const App = () => {
           zoom={17}
           onCenterChanged={onChange}
         >
-          {range && <Polygon path={[
-            { lat: range.lat.from, lng: range.lng.from },
-            { lat: range.lat.from, lng: range.lng.to },
-            { lat: range.lat.to, lng: range.lng.to },
-            { lat: range.lat.to, lng: range.lng.from },
-          ]}></Polygon>}
-          {locations.map(({ lat, lng }) => <Marker position={{ lat, lng }}/>)}
+          <Circle center={center} radius={radius} />
+          {locations.map(({ name, lat, lng }) => <Marker key={name} position={{ lat, lng }}/>)}
         </GoogleMap>
       </LoadScript>
     </div>
