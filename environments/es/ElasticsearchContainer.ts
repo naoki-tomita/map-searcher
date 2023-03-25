@@ -15,11 +15,7 @@ export class ElasticsearchContainer {
   }
 
   async healthCheck() {
-    try {
-      return fetch(`http://localhost:${this.port}`).then(it => it.ok);
-    } catch {
-      return false;
-    }
+    return fetch(`http://localhost:${this.port}`).then(it => it.ok).catch(() => false);
   }
 
   async waitForReady() {

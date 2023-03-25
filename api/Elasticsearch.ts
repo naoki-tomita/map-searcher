@@ -1,5 +1,29 @@
 export type MatchAllQuery = { match_all: {} };
-export type Query = MatchAllQuery;
+export type TermQuery = {
+  term : { [key: string]: string; }
+}
+export type RangeQuery = {
+  range: {
+    [key: string]: {
+      gt?: number;
+      gte?: number;
+      lt?: number;
+      lte?: number;
+      boost?: number;
+    }
+  }
+}
+export type BoolQuery = {
+  bool: {
+    must?: Query[];
+    filter?: Query[];
+    should?: Query[];
+    must_not?: Query[];
+    minimum_should_match?: number;
+    boost?: number;
+  }
+}
+export type Query = MatchAllQuery | BoolQuery | RangeQuery | TermQuery;
 
 export class Elasticsearch {
   constructor(readonly origin: string, readonly indexName: string) {}
@@ -28,7 +52,6 @@ export class Elasticsearch {
       const url = `${this.origin}${path}`;
       console.log(`fetch(${url})`, req);
       return await fetch(url, req);
-      // return await axios.request({ url: `${this.origin}${path}`, data: req.body, headers: req.headers, method: req.method })
     } catch (e: any) {
       throw e;
     }
@@ -63,5 +86,24 @@ export class Elasticsearch {
 
   setRefreshInterval(interval: number | `${number}s`) {
     return this.put("/_settings", { "index.refresh_interval": interval })
+  }
+
+  search<T>(query: Query, size?: number): Promise<SearchResponse<T>> {
+    return this.post(`/${this.indexName}/_search`, { query, size }).then(it => it.json());
+  }
+}
+type SearchResponse<T = any> = {
+  took: number,
+  timed_out: boolean,
+  hits:{
+    total: number,
+    max_score: number,
+    hits: Array<{
+      _index: string,
+      _type: string,
+      _id: string,
+      _score: number,
+      _source: T
+    }>
   }
 }

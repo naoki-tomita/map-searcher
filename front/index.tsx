@@ -3,32 +3,12 @@ import { createRoot } from "react-dom/client";
 import { GoogleMap, LoadScript, Marker, Polygon } from "@react-google-maps/api";
 import debounce from "debounce";
 
-function search(query: any) {
-  return fetch("/es/geo/_search", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      size: 100,
-      query
-    })
-  });
+function queryString(object: object) {
+  return Object.entries(object).map(([k, v]) => `${k}=${v}`).join("&");
 }
 
-function filter(...args: any[]) {
-  return {
-    filter: args
-  }
-}
-
-function rangeQuery(key: string, from: number, to: number) {
-  return {
-    range: {
-      [key]: {
-        lte: to,
-        gte: from,
-      }
-    }
-  };
+function search(lat: number, lng: number, radius: number) {
+  return fetch(`/api/v1/addresses?${queryString({ lat, lng, radius })}`);
 }
 
 type Location = { name: string, lat: number, lng: number };
@@ -36,20 +16,26 @@ type Location = { name: string, lat: number, lng: number };
 function useLocations({ lat, lng }: { lat: number, lng: number }) {
   const [center, setCenter] = useState({ lat, lng });
   const [locations, setLocations] = useState<Location[]>([]);
-  const range = {
-    lat: { from: center.lat - 0.003, to: center.lat + 0.003 },
-    lng: { from: center.lng - 0.003, to: center.lng + 0.003 },
-  }
+  const [range, setRange] = useState<{ [key: string]: { from: number; to: number; } }>();
   useEffect(() => {
-    search({
-      bool: filter(
-        rangeQuery("lat", range.lat.from, range.lat.to),
-        rangeQuery("lng", range.lng.from, range.lng.to),
-      )
-    })
-    .then<{ hits: { hits: Array<{ _source: Location }> }}>(it => it.json())
-    .then(it => it.hits.hits.map(it => it._source))
-    .then(setLocations);
+    search(center.lat, center.lng, 5000)
+    .then<{
+      area: {
+        lat: {
+          from: number;
+          to: number;
+        };
+        lng: {
+          from: number;
+          to: number;
+        };
+      };
+      addresses: Location[];
+    }>(it => it.json())
+    .then(it => {
+      setRange(it.area);
+      setLocations(it.addresses);
+    });
   }, [center.lat, center.lng]);
   return {
     range,
@@ -83,12 +69,12 @@ const App = () => {
           zoom={17}
           onCenterChanged={onChange}
         >
-          <Polygon path={[
+          {range && <Polygon path={[
             { lat: range.lat.from, lng: range.lng.from },
             { lat: range.lat.from, lng: range.lng.to },
             { lat: range.lat.to, lng: range.lng.to },
             { lat: range.lat.to, lng: range.lng.from },
-          ]}></Polygon>
+          ]}></Polygon>}
           {locations.map(({ lat, lng }) => <Marker position={{ lat, lng }}/>)}
         </GoogleMap>
       </LoadScript>
