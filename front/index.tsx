@@ -36,18 +36,50 @@ function useLocations({ lat, lng, radius: defaultRadius }: { lat: number, lng: n
 
 const App = () => {
   const [map, setMap] = useState<google.maps.Map>()
-  const { setCenter, center, locations, radius, setRadius } = useLocations({ lat: 35.69575, lng: 139.77521, radius: 1000 })
+  const { setCenter, center, locations, radius, setRadius } = useLocations({ lat: 35.68156, lng: 139.767201, radius: 1000 })
   const onChange = debounce(() => {
     const coor = map?.getCenter()?.toJSON();
     coor && setCenter(coor);
-  });
-  const onRadiusChange = debounce(e => setRadius(parseInt(e.target.value, 10)));
+  }, 300);
+  const onRadiusChange = debounce(e => setRadius(parseInt(e.target.value, 10)), 300);
 
   return (
     <div>
-      <div>
-        <input type="range" min="1" max="10000" defaultValue="1000" onChange={onRadiusChange} />半径: <input value={radius} onChange={e => setRadius(parseInt(e.target.value || "0" , 10))}/>m
-        <ul style={{ position: "fixed", fontSize: 10, left: 20, top: 20, width: 240, height: 320, overflow: "auto", zIndex: 1, background: "#fff" }}>
+      <div style={{
+        padding: "8px 0",
+        position: "fixed",
+        fontSize: 10,
+        left: 20,
+        top: 20,
+        width: 240,
+        height: 320,
+        zIndex: 1,
+        overflow: "hidden",
+        background: "#fff",
+        display: "flex",
+        flexDirection: "column",
+        border: "1px solid rgba(0, 0, 0, 0.35)",
+        borderRadius: 8,
+        boxShadow: "0px 5px 15px 0px rgba(0, 0, 0, 0.35)",
+        gap: 4,
+      }}>
+        <div style={{ padding: "0 16px" }}>
+          <div>
+            <input type="range" min="1" max="10000" defaultValue="1000" onChange={onRadiusChange} />
+          </div>
+          <div>
+            半径: <input value={radius} style={{ width: 80 }} onChange={e => setRadius(parseInt(e.target.value || "0" , 10))}/> m
+          </div>
+        </div>
+        <div style={{ padding: "0 16px" }}>
+          {locations.length}件
+        </div>
+        <ul style={{
+          height: "100%",
+          overflow: "auto",
+          padding: "0 16px",
+          listStyle: "none"
+        }}>
           {locations.map(it => <li key={it.name}>{it.name}</li>)}
         </ul>
       </div>
@@ -56,8 +88,10 @@ const App = () => {
           onLoad={it => setMap(it)}
           mapContainerStyle={{ height: "100vh", width: "100%" }}
           center={center}
-          zoom={17}
+          zoom={15}
           onCenterChanged={onChange}
+          clickableIcons={false}
+          options={{ disableDefaultUI: true, zoomControl: true }}
         >
           <Circle center={center} radius={radius} />
           {locations.map(({ name, lat, lng }) => <Marker key={name} position={{ lat, lng }}/>)}
@@ -67,6 +101,6 @@ const App = () => {
   );
 }
 
-const root = createRoot(document.body);
+const root = createRoot(document.getElementById("app")!);
 
 root.render(<App />)
