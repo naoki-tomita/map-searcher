@@ -1,0 +1,24 @@
+version: "3.8"
+services:
+  front:
+    build:
+      dockerfile: environments/front/Dockerfile
+      context: ../
+    ports:
+      - 80:80
+  api:
+    build:
+      dockerfile: environments/api/Dockerfile
+      context: ../
+    ports:
+      - 8080:8080
+    environment:
+      - ES_ORIGIN=http://es:9200
+  es:
+    image: elasticsearch:6.5.0
+    ports:
+      - 9200:9200
+    environment:
+      - discovery.type=single-node
+    volumes:
+      - ./.es-data:/usr/share/elasticsearch/data

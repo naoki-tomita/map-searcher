@@ -6,7 +6,7 @@ import { Area, Degree, LatLng, Meter } from "./Domain";
 
 const app = new Koa();
 const router = new Router();
-const es = new Elasticsearch(process.env.ES_HOST ?? "http://localhost:9200", "geo");
+const es = new Elasticsearch(process.env.ES_ORIGIN ?? "http://localhost:9200", "geo");
 const usecase = new CoordinatorSearchUseCase(es);
 
 router.get("/v1/addresses", async (ctx, next) => {
@@ -28,3 +28,4 @@ app
   .use(router.routes())
   .use(router.allowedMethods())
   .listen(8080);
+console.log("Server started on localhost:8080");

@@ -39,7 +39,7 @@ async function loadData(): Promise<Address[]> {
 
 async function main() {
   const esContainer = new ElasticsearchContainer(9200);
-  esContainer.run();
+  // esContainer.run();
   try {
     const [_, data] = await Promise.all([
       esContainer.waitForReady(),
@@ -57,14 +57,18 @@ async function main() {
     await es.setRefreshInterval(-1);
 
     const pool = new PromisePool({ concurrency: 20 });
-    await Promise.all(nameAndCoordinates.map(doc => pool.open(() => es.index(doc))));
+    for (const page of Array(Math.floor(nameAndCoordinates.length / 10000) + 1).fill(null).map((_, i) => i)) {
+      const current = nameAndCoordinates.slice(page * 10000, (page + 1) * 10000);
+      console.log(`page: ${page}, count: ${current.length}`);
+      await Promise.all(current.map(doc => pool.open(() => es.index(doc))));
+    }
 
-    await es.refresh();
-    await es.setRefreshInterval("1s");
   } catch (e) {
     console.error(e);
   } finally {
-    await esContainer.exit()
+    await es.refresh();
+    await es.setRefreshInterval("1s");
+    // await esContainer.exit()
   }
 }
 
