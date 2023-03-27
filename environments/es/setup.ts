@@ -57,10 +57,12 @@ async function main() {
     await es.setRefreshInterval(-1);
 
     const pool = new PromisePool({ concurrency: 20 });
-    for (const page of Array(Math.floor(nameAndCoordinates.length / 10000) + 1).fill(null).map((_, i) => i)) {
-      const current = nameAndCoordinates.slice(page * 10000, (page + 1) * 10000);
+    const pageSize = parseInt(process.env.PAGE_SIZE ?? "10000");
+    for (const page of Array(Math.floor(nameAndCoordinates.length / pageSize) + 1).fill(null).map((_, i) => i)) {
+      const current = nameAndCoordinates.slice(page * pageSize, (page + 1) * pageSize);
       console.log(`page: ${page}, count: ${current.length}`);
       await Promise.all(current.map(doc => pool.open(() => es.index(doc))));
+      await es.refresh();
     }
 
   } catch (e) {
