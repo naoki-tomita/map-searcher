@@ -5,7 +5,9 @@ export class CoordinatorSearchUseCase {
   constructor(readonly es: Elasticsearch) {}
   async findCoordinatorsInArea(area: Area) {
     const coordinatorsInSquare = await this.findCoordinatorsInSquare(area.leftTop, area.rightBottom);
-    return coordinatorsInSquare.excludeOutOfArea(area);
+    return coordinatorsInSquare
+      .excludeOutOfArea(area)
+      .sortFromNorthWest();
   }
 
   private findCoordinatorsInSquare(leftTop: LatLng, rightBottom: LatLng) {

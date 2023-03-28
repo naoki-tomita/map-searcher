@@ -4,6 +4,21 @@ export class Name {
 }
 export class Coordinator {
   constructor(readonly name: Name, readonly center: LatLng) {}
+  isMoreNorthThan(other: Coordinator): boolean {
+    const a = this.center.lat.value - other.center.lat.value;
+    if (a > 0) {
+      return true;
+    }
+    return false;
+  }
+
+  isMoreWestThan(other: Coordinator): boolean {
+    const a = this.center.lng.value - other.center.lng.value;
+    if (a < 0) {
+      return true;
+    }
+    return false;
+  }
 }
 export class Coordinators {
   constructor(readonly values: Coordinator[]) {}
@@ -12,6 +27,12 @@ export class Coordinators {
   }
   map<U>(callbackfn: (value: Coordinator, index: number, array: Coordinator[]) => U, thisArg?: any): U[] {
     return this.values.map(callbackfn, thisArg);
+  }
+  sortFromNorthWest() {
+    const result = [...this.values]
+      .sort((a, b) => a.isMoreWestThan(b) ? -1 : 1)
+      .sort((a, b) => a.isMoreNorthThan(b) ? -1 : 1)
+    return new Coordinators(result);
   }
 }
 

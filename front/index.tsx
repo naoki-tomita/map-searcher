@@ -42,6 +42,24 @@ const App = () => {
     coor && setCenter(coor);
   }, 300);
   const onRadiusChange = debounce(e => setRadius(parseInt(e.target.value, 10)), 300);
+  const [hoveredMarker, setHoveredMarker] = useState<string | null>(null);
+  const onHover = (name: string) => {
+    setHoveredMarker(name);
+  }
+  const onHoverEnd = () => {
+    setHoveredMarker(null);
+  }
+
+  function calcOpacity(name: string) {
+    if (hoveredMarker == null) {
+      return 1.0;
+    }
+    if (name === hoveredMarker) {
+      return 1.0;
+    }
+    return 0.3;
+
+  }
 
   return (
     <div>
@@ -74,13 +92,25 @@ const App = () => {
         <div style={{ padding: "0 16px" }}>
           {locations.length}件
         </div>
+        <style>
+          {`
+          li:hover {
+            background: #ccc;
+          }
+          `}
+        </style>
         <ul style={{
           height: "100%",
           overflow: "auto",
           padding: "0 16px",
           listStyle: "none"
         }}>
-          {locations.map(it => <li key={it.name}>{it.name}</li>)}
+          {locations.map(it =>
+            <li
+              key={it.name}
+              onMouseEnter={() => onHover(it.name)}
+              onMouseOut={onHoverEnd}
+            >{it.name}</li>)}
         </ul>
       </div>
       <LoadScript googleMapsApiKey="AIzaSyDtoF5sQx1NimzgaaAWCsoN5L1icxY2iM0">
@@ -94,7 +124,7 @@ const App = () => {
           options={{ disableDefaultUI: true, zoomControl: true }}
         >
           <Circle center={center} radius={radius} />
-          {locations.map(({ name, lat, lng }) => <Marker key={name} position={{ lat, lng }}/>)}
+          {locations.map(({ name, lat, lng }) => <Marker opacity={calcOpacity(name)} key={name} position={{ lat, lng }}/>)}
         </GoogleMap>
       </LoadScript>
     </div>
