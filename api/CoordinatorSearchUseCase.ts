@@ -11,30 +11,41 @@ export class CoordinatorSearchUseCase {
   }
 
   private findCoordinatorsInSquare(leftTop: LatLng, rightBottom: LatLng) {
-    return this.es.search<{ name: string, lat: number, lng: number }>({
-      bool: {
-        must: [
-          {
-            range: {
-              lat: {
-                gte: leftTop.lat.value,
-                lte: rightBottom.lat.value,
-              }
-            }
-          },
-          {
-            range: {
-              lng: {
-                gte: leftTop.lng.value,
-                lte: rightBottom.lng.value,
-              }
-            }
-          }
-        ]
+    return this.es.search<{
+      name: string,
+      location: {
+        lat: number,
+        lng: number
       }
+    }>({
+      nested: {
+        path: "location",
+        query: {
+          bool: {
+            must: [
+              {
+                range: {
+                  "location.lat": {
+                    gte: leftTop.lat.value,
+                    lte: rightBottom.lat.value,
+                  }
+                }
+              },
+              {
+                range: {
+                  "location.lng": {
+                    gte: leftTop.lng.value,
+                    lte: rightBottom.lng.value,
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
     }, 1000)
     .then(it => it.hits.hits.map(it => it._source))
-    .then(it => it.map(c => new Coordinator(new Name(c.name), new LatLng(new Degree(c.lat), new Degree(c.lng)))))
+    .then(it => it.map(c => new Coordinator(new Name(c.name), new LatLng(new Degree(c.location.lat), new Degree(c.location.lng)))))
     .then(it => new Coordinators(it));
   }
 }

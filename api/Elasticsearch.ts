@@ -23,14 +23,25 @@ export type BoolQuery = {
     boost?: number;
   }
 }
-export type Query = MatchAllQuery | BoolQuery | RangeQuery | TermQuery;
+export type NestedQuery = {
+  nested: {
+    path: string;
+    query: Query;
+  }
+}
+export type Query = MatchAllQuery | BoolQuery | RangeQuery | TermQuery | NestedQuery;
 
 export class Elasticsearch {
-  constructor(readonly origin: string, readonly indexName: string) {}
+  constructor(
+    readonly origin: string,
+    readonly indexName: string,
+    readonly user: string = "elastic",
+    readonly password: string = "password"
+  ) {}
 
   async healthCheck() {
     try {
-      return await fetch(this.origin).then(it => it.ok)
+      return await this.fetch("/_cluster/health?wait_for_status=yellow&timeout=10s").then(it => it.ok)
     } catch {
       return false;
     }
@@ -41,9 +52,9 @@ export class Elasticsearch {
     return result.ok;
   }
 
-  async createIndex() {
+  async createIndex(mapping: object = {}) {
     if (!await this.isExistIndex()) {
-      await this.put(`/${this.indexName}`);
+      return this.put(`/${this.indexName}`, { mappings: { properties: mapping } });
     }
   }
 
@@ -51,6 +62,7 @@ export class Elasticsearch {
     try {
       const url = `${this.origin}${path}`;
       console.log(`fetch(${url})`, req);
+      req.headers = { ...req.headers ?? {}, "Authorization": `Basic ${Buffer.from(`${this.user}:${this.password}`).toString("base64")}` };
       return await fetch(url, req);
     } catch (e: any) {
       throw e;
@@ -66,14 +78,20 @@ export class Elasticsearch {
   }
 
   post(path: string, body: any = {}) {
-    return this.fetch(path, { method: "POST", headers: {"content-type": "application/json"}, body: JSON.stringify(body) });
+    return this.fetch(path, { method: "POST", headers: {"content-type": "application/json"}, body: typeof body === "object" ? JSON.stringify(body) : body });
   }
 
-  index(document: object, id?: string) {
-    if (id) {
-      return this.put(`/${this.indexName}/_doc/${id}`, document);
-    }
+  index(document: object) {
     return this.post(`/${this.indexName}/_doc`, document);
+  }
+
+  bulkIndex(documents: object[]) {
+    return this.post(
+      `/_bulk`,
+      documents
+        .map(it => `${JSON.stringify({index: { _index: this.indexName } })}\n${JSON.stringify(it)}`)
+        .join("\n") + "\n",
+    )
   }
 
   deleteByQuery(query: Query) {
@@ -92,6 +110,7 @@ export class Elasticsearch {
     return this.post(`/${this.indexName}/_search`, { query, size }).then(it => it.json());
   }
 }
+
 type SearchResponse<T = any> = {
   took: number,
   timed_out: boolean,

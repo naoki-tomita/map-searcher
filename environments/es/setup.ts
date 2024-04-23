@@ -1,8 +1,7 @@
 import { parse } from "csv";
 import { Elasticsearch } from "api/Elasticsearch";
 import { ElasticsearchContainer } from "./ElasticsearchContainer";
-import { PromisePool } from "@kojiro.ueda/promise-pool";
-
+import { sleep } from "zx";
 
 const es = new Elasticsearch("http://localhost:9200", "geo");
 
@@ -39,29 +38,53 @@ async function loadData(): Promise<Address[]> {
 
 async function main() {
   const esContainer = new ElasticsearchContainer(9200);
-  // esContainer.run();
+  esContainer.run();
   try {
     const [_, data] = await Promise.all([
       esContainer.waitForReady(),
       loadData(),
     ]);
-    const nameAndCoordinates = data
-      .map(it => ({
-        name: `${it.都道府県名} ${it.市区町村名} ${it.大字町丁目名}${it["小字・通称名"] !== "" ? `(${it["小字・通称名"]})` : ""}`,
-        lat: Number.parseFloat(it.緯度),
-        lng: Number.parseFloat(it.経度)
-      }));
 
-    await es.createIndex();
+    await es.createIndex({
+      name: {
+        type: "keyword"
+      },
+      geo: {
+        type: "geo_point"
+      },
+      location: {
+        type: "nested",
+        properties: {
+          lat: {
+            type: "float"
+          },
+          lng: {
+            type: "float"
+          }
+        }
+      }
+    }).then(it => it?.json()).then(console.log);
     await es.deleteByQuery({ match_all: {} });
     await es.setRefreshInterval(-1);
 
-    const pool = new PromisePool({ concurrency: 20 });
+    const nameAndCoordinates = data
+      .map(it => ({
+        name: `${it.都道府県名} ${it.市区町村名} ${it.大字町丁目名}${it["小字・通称名"] !== "" ? `(${it["小字・通称名"]})` : ""}`,
+        geo: {
+          type: "Point",
+          coordinates: [Number.parseFloat(it.経度), Number.parseFloat(it.緯度)]
+        },
+        location: {
+          lat: Number.parseFloat(it.緯度),
+          lng: Number.parseFloat(it.経度),
+        },
+      }));
+
     const pageSize = parseInt(process.env.PAGE_SIZE ?? "10000");
     for (const page of Array(Math.floor(nameAndCoordinates.length / pageSize) + 1).fill(null).map((_, i) => i)) {
       const current = nameAndCoordinates.slice(page * pageSize, (page + 1) * pageSize);
       console.log(`page: ${page}, count: ${current.length}`);
-      await Promise.all(current.map(doc => pool.open(() => es.index(doc))));
+      await es.bulkIndex(current).then(it => it?.json()).then(it => console.log(it.items[0]));
       await es.refresh();
     }
 
