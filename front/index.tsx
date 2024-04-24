@@ -8,7 +8,7 @@ function queryString(object: object) {
 }
 
 function search(lat: number, lng: number, radius: number) {
-  return fetch(`/api/v1/addresses?${queryString({ lat, lng, radius })}`);
+  return fetch(`/api/v2/addresses?${queryString({ lat, lng, radius })}`);
 }
 
 type Location = { name: string, lat: number, lng: number };

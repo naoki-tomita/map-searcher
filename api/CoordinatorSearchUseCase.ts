@@ -48,4 +48,29 @@ export class CoordinatorSearchUseCase {
     .then(it => it.map(c => new Coordinator(new Name(c.name), new LatLng(new Degree(c.location.lat), new Degree(c.location.lng)))))
     .then(it => new Coordinators(it));
   }
+
+  async findCoordinatorsInAreaByGeoPoint(area: Area): Promise<Coordinators> {
+    const result = await this.es.search<{
+      name: string,
+      location: {
+        lat: number,
+        lng: number
+      }
+    }>({
+      geo_shape: {
+        geo: {
+          shape: {
+            type: "circle",
+            radius: `${area.radius.value}m`,
+            coordinates: [area.center.lng.value, area.center.lat.value],
+          },
+          relation: "within"
+        }
+      }
+    }, 10000);
+    const coordinatorList = result.hits.hits
+      .map(it => it._source)
+      .map(it => new Coordinator(new Name(it.name), new LatLng(new Degree(it.location.lat), new Degree(it.location.lng))));
+    return new Coordinators(coordinatorList);
+  }
 }

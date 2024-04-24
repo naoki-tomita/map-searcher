@@ -29,7 +29,34 @@ export type NestedQuery = {
     query: Query;
   }
 }
-export type Query = MatchAllQuery | BoolQuery | RangeQuery | TermQuery | NestedQuery;
+
+type GeoShape = GeoShapePolygon | GeoShapeCircle | GeoShapeLineString;
+
+type GeoShapePolygon = {
+  type: "polygon";
+  coordinates: Array<[number, number]>;
+}
+
+type GeoShapeLineString = {
+  type: "linestring";
+  coordinates: Array<[number, number]>;
+};
+
+type GeoShapeCircle = {
+  type: "circle";
+  radius: string;
+  coordinates: [number, number];
+}
+
+export type GeoShapeQuery = {
+  geo_shape: {
+    [key: string]: {
+      shape: GeoShape;
+      relation: "intersects" | "disjoint" | "within" | "contains";
+    }
+  }
+}
+export type Query = MatchAllQuery | BoolQuery | RangeQuery | TermQuery | NestedQuery | GeoShapeQuery;
 
 export class Elasticsearch {
   constructor(
